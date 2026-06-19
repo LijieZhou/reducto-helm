@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: locust-locustfile
+  namespace: default
+data:
+  locustfile.py: |
+{{ .Files.Get "locust/locustfile.py" | indent 4 }}

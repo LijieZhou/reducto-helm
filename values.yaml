@@ -1,0 +1,22 @@
+image:
+  repository: nginx        # replace with your actual image
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+service:
+  nodePort: 30080          # must match local.node_port in alb.tf
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70

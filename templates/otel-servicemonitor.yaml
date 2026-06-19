@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+  endpoints:
+    - port: prometheus
+      path: /metrics
+      interval: 30s
+    - port: metrics   # collector's own internal telemetry (accepted spans, queue size, etc.)
+      targetPort: 8888
+      path: /metrics
+      interval: 30s

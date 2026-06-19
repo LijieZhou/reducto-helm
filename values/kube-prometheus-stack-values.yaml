@@ -1,0 +1,23 @@
+grafana:
+  adminPassword: "admin"   # change for anything beyond local testing
+
+  # Expose via port-forward for local access — no public ingress needed
+  service:
+    type: ClusterIP
+
+prometheus:
+  prometheusSpec:
+    # Scrape all ServiceMonitors across all namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    retention: 7d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+alertmanager:
+  enabled: false   # not needed for local testing

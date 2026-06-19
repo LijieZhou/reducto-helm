@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: locust
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: locust
+  template:
+    metadata:
+      labels:
+        app: locust
+    spec:
+      containers:
+        - name: locust
+          image: locustio/locust:2.32.3
+          args:
+            - -f
+            - /locust/locustfile.py
+            - --host
+            - http://otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4318
+            - --web-port
+            - "8089"
+          ports:
+            - containerPort: 8089
+          volumeMounts:
+            - name: locustfile
+              mountPath: /locust
+      volumes:
+        - name: locustfile
+          configMap:
+            name: locust-locustfile
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: locust
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: locust
+  ports:
+    - port: 8089
+      targetPort: 8089

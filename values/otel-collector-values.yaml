@@ -1,0 +1,69 @@
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+mode: deployment
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    batch: {}
+    memory_limiter:
+      check_interval: 5s
+      limit_mib: 256
+
+  exporters:
+    prometheus:
+      endpoint: "0.0.0.0:8889"
+    debug:
+      verbosity: basic   # logs received spans/metrics — useful during local testing
+
+  service:
+    telemetry:
+      metrics:
+        level: detailed   # enables receiver_*, exporter_*, processor_* pipeline metrics
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [debug]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [prometheus]
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+ports:
+  metrics:
+    enabled: true
+    containerPort: 8888
+    servicePort: 8888
+    protocol: TCP
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    protocol: TCP
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    protocol: TCP
+  prometheus:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP

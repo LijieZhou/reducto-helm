@@ -1,0 +1,174 @@
+{
+  "title": "Reducto — Service Health",
+  "uid": "reducto-main",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+
+    { "type": "row", "title": "Traffic", "id": 100, "gridPos": {"x":0,"y":0,"w":24,"h":1}, "collapsed": false },
+
+    {
+      "id": 1, "title": "OTLP Metric Points Rate",
+      "type": "timeseries", "gridPos": {"x":0,"y":1,"w":8,"h":7},
+      "targets": [
+        { "expr": "rate(otelcol_receiver_accepted_metric_points{receiver=\"otlp\"}[2m])", "legendFormat": "accepted" },
+        { "expr": "rate(otelcol_receiver_refused_metric_points{receiver=\"otlp\"}[2m])", "legendFormat": "refused" },
+        { "expr": "rate(otelcol_exporter_sent_metric_points{exporter=\"prometheus\"}[2m])", "legendFormat": "exported" }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    {
+      "id": 2, "title": "Pipeline Backpressure (accepted vs exported lag)",
+      "type": "timeseries", "gridPos": {"x":8,"y":1,"w":8,"h":7},
+      "targets": [
+        { "expr": "rate(otelcol_receiver_accepted_metric_points{receiver=\"otlp\"}[2m]) - rate(otelcol_exporter_sent_metric_points{exporter=\"prometheus\"}[2m])", "legendFormat": "lag (accepted - exported)" },
+        { "expr": "otelcol_processor_batch_metadata_cardinality", "legendFormat": "batch cardinality" }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    {
+      "id": 3, "title": "Error Rate & Collector Resource",
+      "type": "timeseries", "gridPos": {"x":16,"y":1,"w":8,"h":7},
+      "targets": [
+        { "expr": "sum(rate(http_server_request_duration_count{http_route=~\"/v1/.*\",http_response_status_code!=\"200\"}[2m])) / sum(rate(http_server_request_duration_count{http_route=~\"/v1/.*\"}[2m]))", "legendFormat": "error rate" },
+        { "expr": "otelcol_process_memory_rss / 1024 / 1024", "legendFormat": "collector RSS (MB)" },
+        { "expr": "rate(otelcol_process_cpu_seconds[2m])", "legendFormat": "collector CPU cores" }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    { "type": "row", "title": "Pod Resources", "id": 101, "gridPos": {"x":0,"y":8,"w":24,"h":1}, "collapsed": false },
+
+    {
+      "id": 4, "title": "Pod CPU Usage",
+      "type": "timeseries", "gridPos": {"x":0,"y":9,"w":12,"h":7},
+      "targets": [{
+        "expr": "sum by(pod)(rate(container_cpu_usage_seconds_total{namespace=\"default\",pod=~\"reducto.*\",container!=\"\",container!=\"POD\"}[2m]))",
+        "legendFormat": "{{pod}}"
+      }],
+      "fieldConfig": {"defaults": {"unit": "cores"}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    {
+      "id": 5, "title": "Pod Memory Usage",
+      "type": "timeseries", "gridPos": {"x":12,"y":9,"w":12,"h":7},
+      "targets": [{
+        "expr": "sum by(pod)(container_memory_working_set_bytes{namespace=\"default\",pod=~\"reducto.*\",container!=\"\",container!=\"POD\"})",
+        "legendFormat": "{{pod}}"
+      }],
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    { "type": "row", "title": "Pod Health", "id": 102, "gridPos": {"x":0,"y":16,"w":24,"h":1}, "collapsed": false },
+
+    {
+      "id": 6, "title": "Pod Restarts (last 1h)",
+      "type": "timeseries", "gridPos": {"x":0,"y":17,"w":12,"h":7},
+      "targets": [{
+        "expr": "sum by(pod)(increase(kube_pod_container_status_restarts_total{namespace=\"default\",pod=~\"reducto.*\"}[1h]))",
+        "legendFormat": "{{pod}}"
+      }],
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "bars"}}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    {
+      "id": 7, "title": "Pod Status",
+      "type": "stat", "gridPos": {"x":12,"y":17,"w":12,"h":7},
+      "targets": [
+        { "expr": "count(kube_pod_status_phase{namespace=\"default\",pod=~\"reducto.*\",phase=\"Running\"})", "legendFormat": "Running" },
+        { "expr": "count(kube_pod_status_phase{namespace=\"default\",pod=~\"reducto.*\",phase=\"Pending\"}) or vector(0)", "legendFormat": "Pending" },
+        { "expr": "count(kube_pod_status_phase{namespace=\"default\",pod=~\"reducto.*\",phase=\"Failed\"}) or vector(0)", "legendFormat": "Failed" }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "short"},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Running"}, "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "Pending"},  "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "Failed"},   "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]}
+        ]
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "horizontal", "colorMode": "background"}
+    },
+
+    { "type": "row", "title": "Node Resources", "id": 103, "gridPos": {"x":0,"y":24,"w":24,"h":1}, "collapsed": false },
+
+    {
+      "id": 8, "title": "Node CPU Usage",
+      "type": "timeseries", "gridPos": {"x":0,"y":25,"w":8,"h":7},
+      "targets": [{
+        "expr": "1 - avg by(node)(rate(node_cpu_seconds_total{mode=\"idle\"}[2m]))",
+        "legendFormat": "{{node}}"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "max": 1}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    {
+      "id": 9, "title": "Node Memory Usage",
+      "type": "timeseries", "gridPos": {"x":8,"y":25,"w":8,"h":7},
+      "targets": [{
+        "expr": "1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+        "legendFormat": "{{instance}}"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "max": 1}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    {
+      "id": 10, "title": "Node Network I/O",
+      "type": "timeseries", "gridPos": {"x":16,"y":25,"w":8,"h":7},
+      "targets": [
+        { "expr": "sum by(instance)(rate(node_network_receive_bytes_total{device!=\"lo\"}[2m]))", "legendFormat": "rx {{instance}}" },
+        { "expr": "sum by(instance)(rate(node_network_transmit_bytes_total{device!=\"lo\"}[2m]))", "legendFormat": "tx {{instance}}" }
+      ],
+      "fieldConfig": {"defaults": {"unit": "Bps"}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    { "type": "row", "title": "Scaling Behavior", "id": 104, "gridPos": {"x":0,"y":32,"w":24,"h":1}, "collapsed": false },
+
+    {
+      "id": 11, "title": "HPA Replica Count vs Max",
+      "type": "timeseries", "gridPos": {"x":0,"y":33,"w":12,"h":7},
+      "targets": [
+        { "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"default\"}", "legendFormat": "current" },
+        { "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"default\"}", "legendFormat": "desired" },
+        { "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"default\"}", "legendFormat": "max" },
+        { "expr": "kube_horizontalpodautoscaler_spec_min_replicas{namespace=\"default\"}", "legendFormat": "min" }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+
+    {
+      "id": 12, "title": "CPU Utilization vs HPA Target (70%)",
+      "type": "timeseries", "gridPos": {"x":12,"y":33,"w":12,"h":7},
+      "targets": [{
+        "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\",pod=~\"reducto.*\",container!=\"\",container!=\"POD\"}[2m])) / sum(kube_pod_container_resource_requests{namespace=\"default\",pod=~\"reducto.*\",resource=\"cpu\"})",
+        "legendFormat": "avg CPU utilization"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit", "max": 2,
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": 0},
+            {"color": "yellow", "value": 0.5},
+            {"color": "red", "value": 0.7}
+          ]}
+        }
+      },
+      "options": {"tooltip": {"mode": "single"}}
+    }
+
+  ],
+  "schemaVersion": 38
+}
